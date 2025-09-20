@@ -1,0 +1,29 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Verb {
+  id        Int    @id @default(autoincrement())
+  kanji     String
+  stem      String
+  masu      String
+  dict      String
+  te        String
+  nai       String
+  ta        String
+  group     String
+  meaning   String
+  masuRead  String
+  dictRead  String
+  teRead    String
+  naiRead   String
+  taRead    String
+}

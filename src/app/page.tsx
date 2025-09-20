@@ -1,103 +1,256 @@
-import Image from "next/image";
+"use client"
+import { useState, useEffect } from "react"
+import PartialFlashcard from "@/components/PartialFlashcard"
+
+type Verb = {
+  id: number
+  kanji: string
+  stem: string
+  masu: string
+  dict: string
+  te: string
+  nai: string
+  ta: string
+  group: string
+  meaning: string
+  masuRead: string
+  dictRead: string
+  teRead: string
+  naiRead: string
+  taRead: string
+}
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [verbs, setVerbs] = useState<Verb[]>([])
+  const [index, setIndex] = useState(0)
+  const [showReading, setShowReading] = useState(false)
+  const [showMeaning, setShowMeaning] = useState(false)
+  const [targetForm, setTargetForm] = useState<"dict" | "te" | "nai" | "ta">("dict")
+  const [formData, setFormData] = useState({ masu: "", meaning: "", group: "1" })
+  const [searchTerm, setSearchTerm] = useState("")
+  const [showAddForm, setShowAddForm] = useState(false)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  useEffect(() => {
+    fetchVerbs(searchTerm)
+  }, [searchTerm])
+
+  const fetchVerbs = async (q: string) => {
+    const res = await fetch(`/api/verbs?q=${encodeURIComponent(q)}`)
+    const data = await res.json()
+    setVerbs(data)
+    setIndex(0)
+  }
+
+  const handleNext = () => {
+    setIndex((prev) => (prev < verbs.length - 1 ? prev + 1 : 0))
+  }
+
+  const handleBack = () => {
+    setIndex((prev) => (prev > 0 ? prev - 1 : verbs.length - 1))
+  }
+
+  const handleAdd = async () => {
+    if (!formData.masu || !formData.meaning) return
+    await fetch("/api/verbs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    })
+    setFormData({ masu: "", meaning: "", group: "1" })
+    await fetchVerbs(searchTerm)
+    setShowAddForm(false)
+  }
+
+  const handleUpdate = async () => {
+    const verb = verbs[index]
+    if (!verb) return
+    await fetch(`/api/verbs/${verb.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(verb),
+    })
+    await fetchVerbs(searchTerm)
+  }
+
+  const handleDelete = async () => {
+    const verb = verbs[index]
+    if (!verb) return
+    await fetch(`/api/verbs/${verb.id}`, { method: "DELETE" })
+    await fetchVerbs(searchTerm)
+    setIndex((prev) => (prev > 0 ? prev - 1 : 0))
+  }
+
+  const verb = verbs[index] ?? null
+
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center gap-8 bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <h1 className="text-3xl font-extrabold text-indigo-700 drop-shadow">
+        Flashcard Perubahan Kata Kerja Jepang
+      </h1>
+
+      {/* Search bar */}
+      <input
+        type="text"
+        placeholder="Cari kata (arti / 日本語 / bentuk)..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full max-w-md border p-2 rounded-lg shadow focus:ring-2 focus:ring-indigo-400"
+      />
+
+      {/* Toggle Cara Baca & Arti */}
+      <div className="flex gap-6 bg-white px-6 py-3 rounded-xl shadow-md">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showReading}
+            onChange={(e) => setShowReading(e.target.checked)}
+            className="accent-indigo-500"
+          />
+          <span className="font-medium">Tampilkan cara baca</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showMeaning}
+            onChange={(e) => setShowMeaning(e.target.checked)}
+            className="accent-indigo-500"
+          />
+          <span className="font-medium">Tampilkan arti</span>
+        </label>
+      </div>
+
+      {/* Pilihan bentuk */}
+      <div className="flex gap-4 flex-wrap justify-center bg-white px-6 py-3 rounded-xl shadow-md">
+        {["dict", "te", "nai", "ta"].map((form) => (
+          <label
+            key={form}
+            className={`px-3 py-1 rounded-lg cursor-pointer ${targetForm === form
+              ? "bg-indigo-500 text-white"
+              : "bg-gray-200 hover:bg-gray-300"
+              }`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+            <input
+              type="radio"
+              name="form"
+              value={form}
+              checked={targetForm === form}
+              onChange={() => setTargetForm(form as never)}
+              className="hidden"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            {form === "dict"
+              ? "辞書形"
+              : form === "te"
+                ? "て形"
+                : form === "nai"
+                  ? "ない形"
+                  : "た形"}
+          </label>
+        ))}
+      </div>
+
+      {/* Flashcard */}
+      {verb ? (
+        <PartialFlashcard
+          stem={verb.stem}
+          masu={verb.masu}
+          target={verb[targetForm]}
+          group={verb.group}
+          masuReading={verb.masuRead}
+          targetReading={
+            targetForm === "dict"
+              ? verb.dictRead
+              : targetForm === "te"
+                ? verb.teRead
+                : targetForm === "nai"
+                  ? verb.naiRead
+                  : verb.taRead
+          }
+          showReading={showReading}
+          meaning={verb.meaning}
+          showMeaning={showMeaning}
+        />
+      ) : (
+        <p className="text-gray-600 mt-4">Tidak ada kata ditemukan</p>
+      )}
+
+      {/* Update / Delete */}
+      {verb && (
+        <div className="flex gap-4">
+          {/* <button
+            onClick={handleUpdate}
+            className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 shadow"
           >
-            Read our docs
-          </a>
+            Update
+          </button> */}
+          <button
+            onClick={handleDelete}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow"
+          >
+            Delete
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      )}
+
+      {/* Navigation */}
+      <div className="flex gap-4">
+        {verbs.length > 0 && (
+          <>
+            <button
+              onClick={handleBack}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleNext}
+              className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+            >
+              Next
+            </button>
+
+          </>
+        )}
+        <button
+          onClick={() => setShowAddForm((prev) => !prev)}
+          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+          {showAddForm ? "Cancel" : "+ Tambah"}
+        </button>
+      </div>
+
+      {/* Form Tambah */}
+      {showAddForm && (
+        <div className="flex flex-col gap-4 bg-white p-6 rounded-xl shadow-lg w-full max-w-sm mt-4">
+          <h2 className="text-xl font-bold text-indigo-600">Tambah Kata Baru</h2>
+          <input
+            className="border p-2 rounded focus:ring-2 focus:ring-indigo-400"
+            placeholder="Masu form"
+            value={formData.masu}
+            onChange={(e) => setFormData({ ...formData, masu: e.target.value })}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          <input
+            className="border p-2 rounded focus:ring-2 focus:ring-indigo-400"
+            placeholder="Meaning"
+            value={formData.meaning}
+            onChange={(e) => setFormData({ ...formData, meaning: e.target.value })}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+          <select
+            className="border p-2 rounded focus:ring-2 focus:ring-indigo-400"
+            value={formData.group}
+            onChange={(e) => setFormData({ ...formData, group: e.target.value })}
+          >
+            <option value="1">Group 1 (五段)</option>
+            <option value="2">Group 2 (一段)</option>
+            <option value="3">Group 3 (不規則)</option>
+          </select>
+          <button
+            onClick={handleAdd}
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+          >
+            Save
+          </button>
+        </div>
+      )}
+    </main>
+  )
 }
