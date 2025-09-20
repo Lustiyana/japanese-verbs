@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { generateForms } from "@/lib/generateForms";
 
@@ -8,45 +8,46 @@ type CreateVerbRequest = {
   group: string; // "1"=Godan, "2"=Ichidan, "3"=Irregular
 };
 
-
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const q = searchParams.get("q") || ""
+    const { searchParams } = new URL(req.url);
+    const q = searchParams.get("q") || "";
+
+    let verbs;
 
     if (!q) {
-      const verbs = await prisma.verb.findMany({
+      verbs = await prisma.verb.findMany({
         orderBy: { id: "asc" },
-      })
-      return NextResponse.json(verbs)
+      });
+    } else {
+      verbs = await prisma.verb.findMany({
+        where: {
+          OR: [
+            { kanji: { contains: q[0] } },
+            { stem: { contains: q } },
+            { meaning: { contains: q } },
+            { masuRead: { contains: q } },
+            { dictRead: { contains: q } },
+            { teRead: { contains: q } },
+            { naiRead: { contains: q } },
+            { taRead: { contains: q } },
+          ],
+        },
+        orderBy: { id: "asc" },
+      });
     }
 
-    const verbs = await prisma.verb.findMany({
-      where: {
-        OR: [
-          { kanji: { contains: q[0] } },
-          { stem: { contains: q } },
-          { meaning: { contains: q } },
-          { masuRead: { contains: q } },
-          { dictRead: { contains: q } },
-          { teRead: { contains: q } },
-          { naiRead: { contains: q } },
-          { taRead: { contains: q } },
-        ]
-      },
-      orderBy: { id: "asc" },
-    })
-      ``
-    return NextResponse.json(verbs)
+    return NextResponse.json(verbs);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    console.error("GET /api/verbs error:", error)
+    console.error("GET /api/verbs error:", error);
     return NextResponse.json(
       { error: "Failed to fetch verbs", detail: error.message },
       { status: 500 }
-    )
+    );
   }
 }
+
 
 export async function POST(req: Request) {
   try {
